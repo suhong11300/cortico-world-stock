@@ -5,6 +5,14 @@
   "description": "按本地时区在市场窗口播报行情。覆盖自选股与大盘指数，A 股与美股可切换，指数清单可自定义；接入账户后可选播报持仓盈亏；文案可按设定人格改写。",
   "license": "MIT",
   "author": "苏鸿与维基 (suhong11300)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/suhong11300/cortico-world-stock.git"
+  },
+  "homepage": "https://github.com/suhong11300/cortico-world-stock#readme",
+  "bugs": {
+    "url": "https://github.com/suhong11300/cortico-world-stock/issues"
+  },
   "keywords": [
     "cortico-world",
     "cortico",
