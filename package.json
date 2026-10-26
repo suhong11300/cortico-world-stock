@@ -25,15 +25,14 @@
     "displayName": "拟股喵喵",
     "icon": "icon.svg",
     "screenshots": [
-      "screenshots/brief.svg",
-      "screenshots/us-brief.svg",
-      "screenshots/persona.svg",
-      "screenshots/setup.svg"
+      "screenshots/brief.png",
+      "screenshots/us-brief.png",
+      "screenshots/persona.png",
+      "screenshots/setup.png"
     ],
     "tags": [
       "companion",
-      "internet",
-      "experimental"
+      "internet"
     ],
     "locales": {
       "zh": {
@@ -50,7 +49,7 @@
   "files": [
     "src",
     "icon.svg",
-    "screenshots",
+    "screenshots/*.png",
     "README.md",
     "CHANGELOG.md",
     "describe.json"
