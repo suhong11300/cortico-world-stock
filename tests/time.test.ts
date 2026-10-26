@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_WINDOWS,
+  DEFAULT_WINDOWS_BY_MARKET,
   MARKET_ZONE,
+  guessMarket,
   marketPhase,
+  phaseText,
   matchWindow,
   offsetLabel,
   parseWindows,
@@ -123,5 +126,40 @@ describe('播报窗口', () => {
   it('偏移标签带 UTC 前缀', () => {
     expect(offsetLabel(480)).toBe('UTC+08:00');
     expect(offsetLabel(-300)).toBe('UTC-05:00');
+  });
+});
+describe('美股市场', () => {
+  it('先按本机时区猜市场', () => {
+    expect(guessMarket('America/New_York')).toBe('us');
+    expect(guessMarket('America/Chicago')).toBe('us');
+    expect(guessMarket('Asia/Shanghai')).toBe('cn');
+    expect(guessMarket('Europe/London')).toBe('cn');
+  });
+
+  it('美股 09:30-16:00 连续盘中,没有午休', () => {
+    expect(marketPhase(569, 1, 'us')).toBe('pre');
+    expect(marketPhase(570, 1, 'us')).toBe('trading');
+    expect(marketPhase(719, 1, 'us')).toBe('trading');
+    expect(marketPhase(959, 1, 'us')).toBe('trading');
+    expect(marketPhase(960, 1, 'us')).toBe('closed');
+    expect(marketPhase(600, 0, 'us')).toBe('weekend');
+    expect(phaseText('trading')).toBe('盘中');
+  });
+
+  it('按美东时区给时间与阶段', () => {
+    const at = new Date('2026-10-26T14:00:00Z');
+    const clock = resolveClock('America/New_York', at, 'us');
+    expect(clock.market).toBe('us');
+    expect(clock.marketLabel).toBe('美股');
+    expect(clock.marketZone).toBe('America/New_York');
+    expect(clock.marketText).toBe('2026-10-26 10:00:00');
+    expect(clock.localText).toBe('2026-10-26 10:00:00');
+    expect(clock.phase).toBe('trading');
+    expect(clock.phaseText).toBe('盘中');
+  });
+
+  it('两个市场各有默认窗口', () => {
+    expect(DEFAULT_WINDOWS_BY_MARKET.cn).toBe(DEFAULT_WINDOWS);
+    expect(DEFAULT_WINDOWS_BY_MARKET.us).toBe('15:55-16:05');
   });
 });

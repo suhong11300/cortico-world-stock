@@ -1,15 +1,17 @@
 {
   "name": "cortico-world-stock",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
-  "description": "Cortico World: A-share market briefs for a desktop companion, with a configurable quote source and optional holdings",
+  "description": "Cortico World: market briefs for a desktop companion — A-share and US indices, a configurable index list, optional holdings P&L, and copy rewritten in the persona you set",
   "license": "MIT",
   "keywords": [
     "cortico-world",
     "cortico",
     "stock",
-    "ashare",
     "market",
+    "index",
+    "ashare",
+    "us-stock",
     "companion"
   ],
   "engines": {
@@ -24,6 +26,8 @@
     "icon": "icon.svg",
     "screenshots": [
       "screenshots/brief.svg",
+      "screenshots/us-brief.svg",
+      "screenshots/persona.svg",
       "screenshots/setup.svg"
     ],
     "tags": [
@@ -34,11 +38,11 @@
     "locales": {
       "zh": {
         "displayName": "拟股喵喵",
-        "description": "盯住你关注的 A 股:先确定时区与当前时间,早盘尾盘按窗口播报涨跌,播完追问要不要细看;行情源与持仓都能自己配。"
+        "description": "盯住你关注的市场:先按当地时区定好时间,早盘尾盘按窗口播报涨跌;A 股或美股指数清单都能自己配,接上账户还能只播盈亏,播报文案按你设的人格重写。"
       },
       "en": {
         "displayName": "Stock Meow",
-        "description": "Watches your A-share watchlist and briefs you near the morning and afternoon closes in your own time zone, then asks whether you want the details."
+        "description": "Watches the market you actually live in: A-share or US indices with a list you own, optional holdings P&L, and briefs rewritten in the persona you gave the companion."
       }
     },
     "describe": "describe.json"

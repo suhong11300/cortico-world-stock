@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { askText, composeBrief, toneOf } from '../src/copy.ts';
+import { askText, composeBrief, marketTimeLabel, toneOf, wrapForPersona } from '../src/copy.ts';
 import type { Quote } from '../src/quote.ts';
 import { resolveClock, type ClockInfo } from '../src/time.ts';
 
@@ -82,7 +82,7 @@ describe('播报文案', () => {
       user: '鸿',
       style: 'lively',
     });
-    expect(text).toContain('🐱 拟股喵喵 · 11:25-11:35 播报');
+    expect(text).toContain('🐱 拟股喵喵 · A 股 · 11:25-11:35 播报');
     expect(text).toContain('🕚 北京时间 2026-10-26 11:29:00(周一)');
     expect(text).toContain('📊 市场状态:早盘进行中');
     expect(text).toContain('📉 大盘:上证指数 3,697.52 +0.42%');
@@ -101,7 +101,7 @@ describe('播报文案', () => {
       user: '',
       style: 'lively',
     });
-    expect(text).toContain('🐱 拟股喵喵 · 即时播报');
+    expect(text).toContain('🐱 拟股喵喵 · A 股 · 即时播报');
     expect(text).not.toContain('📉 大盘');
   });
 
@@ -140,7 +140,7 @@ describe('播报文案', () => {
       user: '',
       style: 'lively',
     });
-    expect(withCost).toContain('💰 持仓 市值 ¥135,000.00 · 浮盈 ¥+4950.00 (+3.81%)');
+    expect(withCost).toContain('💰 持仓 市值 ¥135,000.00 · 浮盈 ¥+4,950.00 (+3.81%)');
     const noCost = composeBrief({
       clock: clock(),
       quotes: [quote()],
@@ -164,5 +164,52 @@ describe('播报文案', () => {
     });
     expect(text).toContain('❓ 缺行情:300750');
     expect(text).toContain('⚠️ 没取到:300750 超时');
+  });
+});
+describe('市场标签与人格化包装', () => {
+  it('两个市场各有时间说法', () => {
+    expect(marketTimeLabel('us')).toBe('美东时间');
+    expect(marketTimeLabel('cn')).toBe('北京时间');
+  });
+
+  it('美股播报用美东时间与市场名', () => {
+    const usClock = resolveClock('America/New_York', new Date('2026-10-26T14:00:00Z'), 'us');
+    const text = composeBrief({ clock: usClock, quotes: [], indices: [], account: null, user: '鸿', style: 'lively' });
+    expect(text).toContain('🐱 拟股喵喵 · 美股 · 即时播报');
+    expect(text).toContain('美东时间 2026-10-26 10:00:00');
+  });
+
+  it('只播持仓时不出关注段', () => {
+    const account = { positions: [], marketValue: 135000, costValue: 130000, pnl: 5000, pnlPct: 3.85, missing: [] };
+    const text = composeBrief({ clock: clock(), quotes: [quote()], indices: [], account, user: '鸿', style: 'lively', scope: 'account' });
+    expect(text).toContain('💰 持仓');
+    expect(text).not.toContain('🔎');
+  });
+
+  it('没接账户时把话说明白', () => {
+    const text = composeBrief({ clock: clock(), quotes: [], indices: [], account: null, user: '鸿', style: 'lively', scope: 'account' });
+    expect(text).toContain('还没接账户数据');
+    expect(text).not.toContain('🔎');
+  });
+
+  it('人格化包装写明素材与边界', () => {
+    const text = wrapForPersona('🐱 拟股喵喵 · 测试素材', '鸿');
+    expect(text).toContain('真实行情素材');
+    expect(text).toContain('🐱 拟股喵喵 · 测试素材');
+    expect(text).toContain('不要编造');
+    expect(text).toContain('鸿');
+  });
+});
+
+describe('账户币种', () => {
+  it('美股用 $,A 股用 ¥', () => {
+    const account = { positions: [], marketValue: 86420, costValue: 87660, pnl: -1240, pnlPct: -1.41, missing: [] };
+    const cn = composeBrief({ clock: clock(), quotes: [], indices: [], account, user: '鸿', style: 'lively' });
+    expect(cn).toContain('市值 ¥86,420.00');
+    const usClock = resolveClock('America/New_York', new Date('2026-10-26T14:00:00Z'), 'us');
+    const us = composeBrief({ clock: usClock, quotes: [], indices: [], account, user: '鸿', style: 'lively' });
+    expect(us).toContain('市值 $86,420.00');
+    expect(us).toContain('浮盈 $-1,240.00');
+    expect(us).not.toContain('浮盈 $1240.00');
   });
 });

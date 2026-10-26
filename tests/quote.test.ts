@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fetchEastmoney, fetchOneThs, fetchQuotes, normalizeSymbol, parseSymbols } from '../src/quote.ts';
+import { fetchEastmoney, fetchEastmoneyOne, fetchOneThs, fetchQuotes, normalizeSymbol, parseSymbols } from '../src/quote.ts';
 import { formatQuoteTime } from '../src/format.ts';
 
 const EM_BODY = JSON.stringify({
@@ -196,5 +196,115 @@ describe('两路取数', () => {
   it('空列表不发请求', async () => {
     const result = await fetchQuotes([]);
     expect(result).toEqual({ quotes: [], errors: [], source: null });
+  });
+});
+describe('美股指数', () => {
+  it('字母代码归一化成 100.<CODE>', () => {
+    expect(normalizeSymbol('DJIA')).toMatchObject({ code: 'DJIA', market: 'us', secid: '100.DJIA' });
+    expect(normalizeSymbol('100.SPX')).toMatchObject({ code: 'SPX', market: 'us', secid: '100.SPX' });
+    expect(normalizeSymbol('US.NDX')).toMatchObject({ code: 'NDX', market: 'us', secid: '100.NDX' });
+    expect(normalizeSymbol('INDEX:DJIA')).toMatchObject({ code: 'DJIA', index: true });
+  });
+
+  it('DJI 认成 DJIA,小写字母代码不认', () => {
+    expect(normalizeSymbol('DJI')?.code).toBe('DJIA');
+    expect(normalizeSymbol('IXIC')?.code).toBe('NDX');
+    expect(normalizeSymbol('djia')).toBeNull();
+  });
+
+  it('和 A 股混写也能分开', () => {
+    const { symbols, problems } = parseSymbols('sh000001,DJIA 600519');
+    expect(symbols.map((s) => s.secid)).toEqual(['1.000001', '100.DJIA', '1.600519']);
+    expect(problems).toEqual([]);
+  });
+
+  it('东财按 100.DJIA 取美股,market 记成 us', async () => {
+    const urls: string[] = [];
+    const fetchImpl = (async (input: unknown) => {
+      urls.push(String(input));
+      return new Response(
+        JSON.stringify({ data: { diff: [{ f2: 52215.16, f3: -1.23, f4: -650, f12: "DJIA", f13: 100, f14: "道琼斯", f124: 1761000000 }] } }),
+        { status: 200 },
+      );
+    }) as typeof globalThis.fetch;
+    const ref = normalizeSymbol('DJIA');
+    if (!ref) throw new Error('DJIA 应该能归一化');
+    const quotes = await fetchEastmoney([ref], { fetchImpl });
+    expect(urls[0]).toContain('100.DJIA');
+    expect(quotes[0]).toMatchObject({ code: 'DJIA', name: '道琼斯', market: 'us', price: 52215.16 });
+  });
+
+  it('同花顺这条路不收美股指数', async () => {
+    const ref = normalizeSymbol('DJIA');
+    if (!ref) throw new Error('DJIA 应该能归一化');
+    await expect(fetchOneThs(ref)).rejects.toThrow('美股指数请用 eastmoney');
+  });
+});
+
+describe('东财单只接口兜底', () => {
+  /** 批量接口被掐断(实测有网络会直接 RST),单只 stock/get 还能用。 */
+  const mixed = (seen: string[]): typeof globalThis.fetch =>
+    (async (input: unknown) => {
+      const url = String(input);
+      seen.push(url);
+      if (url.includes('ulist.np')) throw new TypeError('fetch failed');
+      const secid = new URL(url).searchParams.get('secid') ?? '';
+      const code = secid.split('.')[1] ?? '';
+      return new Response(
+        JSON.stringify({
+          data: {
+            f43: 3697.52,
+            f44: 3699.01,
+            f45: 3664.82,
+            f46: 3671,
+            f47: 432794318,
+            f48: 746528025716.4,
+            f57: code,
+            f58: '上证指数',
+            f60: 3690.48,
+            f86: 1793001570,
+            f169: 7.04,
+            f170: 0.19,
+          },
+        }),
+        { status: 200 },
+      );
+    }) as typeof globalThis.fetch;
+
+  it('批量失败就逐只走 stock/get', async () => {
+    const seen: string[] = [];
+    const refs = parseSymbols('sh000001,sz399001').symbols;
+    const quotes = await fetchEastmoney(refs, { fetchImpl: mixed(seen) });
+    expect(quotes).toHaveLength(2);
+    expect(seen[0]).toContain('ulist.np');
+    expect(seen.some((u) => u.includes('stock/get'))).toBe(true);
+    expect(quotes[0]).toMatchObject({
+      code: '000001',
+      name: '上证指数',
+      price: 3697.52,
+      prevClose: 3690.48,
+      open: 3671,
+      high: 3699.01,
+      low: 3664.82,
+      change: 7.04,
+      changePct: 0.19,
+      source: 'eastmoney',
+      suspended: false,
+    });
+    expect(quotes[0]?.at).toBe(1793001570000);
+  });
+
+  it('单只请求带 fltt=2 与 secid', async () => {
+    const seen: string[] = [];
+    const ref = parseSymbols('600519').symbols[0];
+    if (!ref) throw new Error('600519 应该能归一化');
+    await fetchEastmoneyOne(ref, { fetchImpl: mixed(seen) });
+    expect(seen[0]).toContain('fltt=2');
+    expect(seen[0]).toContain('secid=1.600519');
+  });
+
+  it('两条路都失败才抛错,且抛的是批量那条', async () => {
+    const fetchImpl = (async () => new Response('boom', { status: 502 })) as unknown as typeof globalThis.fetch;
+    await expect(fetchEastmoney(parseSymbols('600519').symbols, { fetchImpl })).rejects.toThrow('HTTP 502');
   });
 });

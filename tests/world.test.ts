@@ -108,10 +108,12 @@ describe('装配契约', () => {
     }
   });
 
-  it('环境提示词给出六个占位符', () => {
+  it('环境提示词给出八个占位符', () => {
     const { world } = rig();
     expect(world.envPromptVars()).toEqual({
       'stock.now': '2026-10-26 11:30:00',
+      'stock.market': 'A 股(Asia/Shanghai)',
+      'stock.index': '000001、399001、399006、000688',
       'stock.zone': 'Asia/Shanghai',
       'stock.phase': '午间休市',
       'stock.watch': '600519、000001',
@@ -215,7 +217,7 @@ describe('手动工具', () => {
   it('即时播报只看不推', async () => {
     const { world, host } = rig({}, { autoBrief: false });
     const text = await call(world, 'stock_now');
-    expect(text).toContain('🐱 拟股喵喵 · 即时播报');
+    expect(text).toContain('🐱 拟股喵喵 · A 股 · 即时播报');
     expect(text).toContain('🔎 关注');
     expect(host.events).toEqual([]);
   });
@@ -287,7 +289,7 @@ describe('手动工具', () => {
   it('日程表报出窗口与下一段', async () => {
     const { world } = rig();
     const text = await call(world, 'stock_schedule');
-    expect(text).toContain('🗓 播报窗口:11:25-11:35、14:55-15:05');
+    expect(text).toContain('🗓 A 股 播报窗口:11:25-11:35、14:55-15:05');
     expect(text).toContain('下一段:11:25-11:35');
   });
 
@@ -299,5 +301,133 @@ describe('手动工具', () => {
     await world.stop();
     expect(text).toContain('· 11:25-11:35 → 待播/已错过');
     expect(text).not.toContain('已播 ');
+  });
+});
+describe('境外市场、持仓范围与人格化', () => {
+  /** 2026-10-26 20:00Z = 美东 16:00 周一,正好落在美股窗口 15:55-16:05 里。 */
+  const US_CLOSE = new Date('2026-10-26T20:00:00Z');
+
+  const recordingFetch = (urls: string[]): typeof globalThis.fetch =>
+    (async (input: unknown) => {
+      const url = String(input);
+      urls.push(url);
+      const secids = new URL(url).searchParams.get('secids') ?? '';
+      const diff = secids
+        .split(
+          ',',
+        )
+        .filter(Boolean)
+        .map((secid) => {
+          const [mkt, code] = secid.split('.');
+          return {
+            f2: 100,
+            f3: 0.5,
+            f4: 0.5,
+            f5: 1,
+            f6: 1000,
+            f12: code,
+            f13: Number(mkt),
+            f14: code,
+            f15: 101,
+            f16: 98,
+            f17: 99,
+            f18: 99.5,
+            f124: 1761000000,
+          };
+        });
+      return new Response(JSON.stringify({ data: { diff } }), { status: 200 });
+    }) as typeof globalThis.fetch;
+
+  it('本机在美国时区就按美股窗口播报', async () => {
+    const urls: string[] = [];
+    const { world, host } = rig(
+      { timezone: 'America/New_York', now: () => US_CLOSE, fetchImpl: recordingFetch(urls) },
+      { watchlist: 'AAPL', indexList: 'sh000001' },
+    );
+    await world.start(host);
+    await world.stop();
+    expect(host.events.map((e) => e.type)).toEqual(['stock.ready', 'stock.brief', 'stock.ask']);
+    expect(host.events[0]?.text).toContain('美股');
+    expect(host.events[1]?.text).toContain('15:55-16:05 播报');
+    expect(host.events[1]?.text).toContain('美东时间');
+    const secids = urls.map((u) => new URL(u).searchParams.get('secids') ?? '').join('|');
+    expect(secids).toContain('100.DJIA');
+    expect(secids).not.toContain('1.000001');
+  });
+
+  it('市场钉死 cn 时指数清单走 A 股并含科创 50', async () => {
+    const urls: string[] = [];
+    const { world } = rig({ fetchImpl: recordingFetch(urls) }, { market: 'cn' });
+    await call(world, 'stock_now');
+    const secids = urls.map((u) => new URL(u).searchParams.get('secids') ?? '').join('|');
+    expect(secids).toContain('1.000688');
+    expect(secids).not.toContain('100.');
+  });
+
+  it('关注列表里写美股代码也能取到', async () => {
+    const urls: string[] = [];
+    const { world } = rig({ fetchImpl: recordingFetch(urls) }, { market: 'us', watchlist: 'AAPL,DJIA' });
+    await call(world, 'stock_now');
+    const secids = urls.map((u) => new URL(u).searchParams.get('secids') ?? '').join('|');
+    expect(secids).toContain('100.AAPL');
+  });
+
+  it('播报范围选持仓时只播盈亏', async () => {
+    const { world } = rig(
+      {},
+      { autoBrief: false, briefScope: 'account', accountMode: 'manual', holdings: '600519:100:1300' },
+    );
+    const text = await call(world, 'stock_now');
+    expect(text).toContain('💰 持仓');
+    expect(text).not.toContain('🔎');
+  });
+
+  it('没接账户时选了持仓范围就直说没接', async () => {
+    const { world } = rig({}, { autoBrief: false, briefScope: 'account' });
+    const text = await call(world, 'stock_now');
+    expect(text).toContain('还没接账户数据');
+  });
+
+  it('人格化改写:宿主没有 cognition 就带着素材与要求推给会话模型', async () => {
+    const { world, host } = rig({}, { autoBrief: false });
+    await world.start(host);
+    host.events.length = 0;
+    await call(world, 'stock_brief');
+    await world.stop();
+    const text = host.events[0]?.text ?? '';
+    expect(text).toContain('真实行情素材');
+    expect(text).toContain('贵州茅台 600519');
+    expect(text).toContain('不要编造');
+  });
+
+  it('人格化改写:宿主有 cognition 就用它返回的文本', async () => {
+    const { world, host } = rig({}, { autoBrief: false });
+    const asks: string[] = [];
+    Object.assign(host, {
+      cognition: {
+        request: async (req: { brief: string }) => {
+          asks.push(req.brief);
+          return { text: '鸿酱版播报:茅台今天微红' };
+        },
+      },
+    });
+    await world.start(host);
+    host.events.length = 0;
+    await call(world, 'stock_brief');
+    await world.stop();
+    expect(asks).toHaveLength(1);
+    expect(asks[0]).toContain('贵州茅台 600519');
+    expect(host.events[0]?.text).toBe('鸿酱版播报:茅台今天微红');
+  });
+
+  it('人格化关掉就发模板文案', async () => {
+    const { world, host } = rig({}, { autoBrief: false, personaMode: 'plain' });
+    await world.start(host);
+    host.events.length = 0;
+    await call(world, 'stock_brief');
+    await world.stop();
+    const text = host.events[0]?.text ?? '';
+    expect(text).toContain('🐱 拟股喵喵 · A 股 · 即时播报');
+    expect(text).not.toContain('真实行情素材');
   });
 });

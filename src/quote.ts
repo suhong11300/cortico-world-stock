@@ -5,7 +5,13 @@
 import { formatQuoteTime } from './format.ts';
 
 export type QuoteSource = 'eastmoney' | 'ths';
-export type MarketTag = 'sh' | 'sz' | 'bj';
+export type MarketTag = 'sh' | 'sz' | 'bj' | 'us';
+
+/** 东方财富的 secid 前缀:沪 1、深/北 0、美股 100。 */
+export const US_SECID_PREFIX = 100;
+
+/** 常见的美股指数别名,统一成东方财富认的代码。 */
+const US_ALIASES: Record<string, string> = { DJI: 'DJIA', IXIC: 'NDX' };
 
 export interface SymbolRef {
   /** 归一化后的 6 位代码。 */
@@ -73,39 +79,42 @@ const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 const THS_REFERER = 'https://stockpage.10jqka.com.cn/';
 const EM_FIELDS = 'f1,f2,f3,f4,f5,f6,f12,f13,f14,f15,f16,f17,f18,f124';
+/** 单只接口的字段:批量接口被风控掐断时走这条路。 */
+const EM_ONE_FIELDS = 'f43,f44,f45,f46,f47,f48,f57,f58,f60,f86,f169,f170';
 
 /** `600519` / `sh600519` / `600519.SH` / `1.600519` 都归一化成同一份引用。 */
 export function normalizeSymbol(input: string): SymbolRef | null {
   const raw = input.trim();
   if (!raw) return null;
-  let text = raw.toUpperCase();
-  let market: MarketTag | undefined;
-  let index = false;
+  const text = raw.toUpperCase().replace(/^INDEX:/, '');
+  const index = raw.toUpperCase().startsWith('INDEX:');
 
-  if (text.startsWith('INDEX:')) {
-    index = true;
-    text = text.slice(6);
-  }
   const prefixed = /^(SH|SZ|BJ)(\d{6})$/.exec(text);
-  const suffixed = /^(\d{6})\.(SH|SZ|BJ)$/.exec(text);
-  const secidForm = /^([01])\.(\d{6})$/.exec(text);
-  let code = text;
-  if (prefixed) {
-    market = prefixed[1].toLowerCase() as MarketTag;
-    code = prefixed[2];
-  } else if (suffixed) {
-    market = suffixed[2].toLowerCase() as MarketTag;
-    code = suffixed[1];
-  } else if (secidForm) {
-    market = secidForm[1] === '1' ? 'sh' : 'sz';
-    code = secidForm[2];
-  } else if (!/^\d{6}$/.test(text)) {
-    return null;
-  }
+  if (prefixed) return aShare(prefixed[2], prefixed[1].toLowerCase() as MarketTag, raw, index);
 
-  if (!market) market = guessMarket(code);
+  const suffixed = /^(\d{6})\.(SH|SZ|BJ)$/.exec(text);
+  if (suffixed) return aShare(suffixed[1], suffixed[2].toLowerCase() as MarketTag, raw, index);
+
+  const secidForm = /^([01])\.(\d{6})$/.exec(text);
+  if (secidForm) return aShare(secidForm[2], secidForm[1] === '1' ? 'sh' : 'sz', raw, index);
+
+  if (/^\d{6}$/.test(text)) return aShare(text, guessMarket(text), raw, index);
+
+  // 美股四种写法都归一化成 100.<CODE>:us:DJIA / US.DJIA / 100.DJIA / DJIA
+  const us = /^(?:US[:.]|100\.)?([A-Z][A-Z0-9]{0,9})$/.exec(text);
+  if (us) {
+    // 纯字母代码必须原样大写:小写更像随手打的词,认错了就会去查一个不存在的指数。
+    const tail = raw.replace(/^(us[:.]|US[:.]|100\.)/, '');
+    if (tail !== tail.toUpperCase()) return null;
+    const code = US_ALIASES[us[1]] ?? us[1];
+    return { code, market: 'us', secid: US_SECID_PREFIX + '.' + code, raw, index };
+  }
+  return null;
+}
+
+function aShare(code: string, market: MarketTag, raw: string, index: boolean): SymbolRef {
   const emMarket = market === 'sh' ? 1 : 0;
-  return { code, market, secid: `${emMarket}.${code}`, raw, index };
+  return { code, market, secid: emMarket + '.' + code, raw, index };
 }
 
 /** 不带前缀时的交易所推断:6/9/5 开头沪市,0/3/1(债) 深市,4/8 北交所。 */
@@ -180,8 +189,8 @@ interface EastmoneyRow {
   f124?: unknown;
 }
 
-/** 东方财富批量接口:一次最多 50 个 secid,返回的行按代码对齐。 */
-export async function fetchEastmoney(symbols: readonly SymbolRef[], opts: FetchQuotesOptions = {}): Promise<Quote[]> {
+/** 东方财富批量接口(ulist.np):一次最多 50 个 secid,返回的行按代码对齐。 */
+export async function fetchEastmoneyBatch(symbols: readonly SymbolRef[], opts: FetchQuotesOptions = {}): Promise<Quote[]> {
   if (!symbols.length) return [];
   const size = Math.max(1, Math.min(opts.batchSize ?? 50, 50));
   const quotes: Quote[] = [];
@@ -214,7 +223,7 @@ export async function fetchEastmoney(symbols: readonly SymbolRef[], opts: FetchQ
       quotes.push({
         code,
         name: String(row.f14 ?? code),
-        market: num(row.f13) === 1 ? 'sh' : ref?.market === 'bj' ? 'bj' : 'sz',
+        market: ref?.market ?? (num(row.f13) === US_SECID_PREFIX ? 'us' : num(row.f13) === 1 ? 'sh' : 'sz'),
         price,
         prevClose,
         open: num(row.f17),
@@ -233,6 +242,84 @@ export async function fetchEastmoney(symbols: readonly SymbolRef[], opts: FetchQ
   return quotes;
 }
 
+interface EastmoneyOne {
+  f43?: unknown;
+  f44?: unknown;
+  f45?: unknown;
+  f46?: unknown;
+  f47?: unknown;
+  f48?: unknown;
+  f57?: unknown;
+  f58?: unknown;
+  f60?: unknown;
+  f86?: unknown;
+  f169?: unknown;
+  f170?: unknown;
+}
+
+/** 东方财富单只接口(stock/get):fltt=2 直接给两位小数;批量接口不通时的主力。 */
+export async function fetchEastmoneyOne(ref: SymbolRef, opts: FetchQuotesOptions = {}): Promise<Quote> {
+  const url =
+    'https://push2.eastmoney.com/api/qt/stock/get?fltt=2&invt=2&fields=' +
+    EM_ONE_FIELDS +
+    '&secid=' +
+    encodeURIComponent(ref.secid);
+  const body = await getText(url, opts);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    throw new QuoteError('东方财富返回的不是 JSON,可能是反爬页', 'parse');
+  }
+  const data = (parsed as { data?: EastmoneyOne | null }).data;
+  if (!data || typeof data !== 'object') throw new QuoteError('东方财富没有返回这只的行情', 'empty');
+  const code = String(data.f57 ?? ref.code);
+  const price = num(data.f43);
+  const prevClose = num(data.f60);
+  const change = num(data.f169);
+  const changePct = num(data.f170);
+  const stamp = num(data.f86);
+  return {
+    code,
+    name: String(data.f58 ?? code),
+    market: ref.market,
+    price,
+    prevClose,
+    open: num(data.f46),
+    high: num(data.f44),
+    low: num(data.f45),
+    change: price > 0 ? change : 0,
+    changePct: price > 0 ? changePct : 0,
+    volume: num(data.f47),
+    amount: num(data.f48),
+    at: stamp > 0 ? stamp * 1000 : null,
+    source: 'eastmoney',
+    suspended: price <= 0,
+  };
+}
+
+/**
+ * 东方财富:先走批量(一次 50 个最快),这条被风控掐断(实测有网络会直接 RST)时
+ * 逐只走 stock/get,并发 4。两条都失败才把批量的错误抛出去。
+ */
+export async function fetchEastmoney(symbols: readonly SymbolRef[], opts: FetchQuotesOptions = {}): Promise<Quote[]> {
+  if (!symbols.length) return [];
+  try {
+    return await fetchEastmoneyBatch(symbols, opts);
+  } catch (batchError) {
+    const rows = await mapLimit(symbols, 4, async (ref) => {
+      try {
+        return await fetchEastmoneyOne(ref, opts);
+      } catch {
+        return null;
+      }
+    });
+    const quotes = rows.filter((q): q is Quote => q !== null);
+    if (!quotes.length) throw batchError;
+    return quotes;
+  }
+}
+
 /** 同花顺 JSONP 存根:quotebridge_v6_time_hs_600519_last({...}) */
 function unwrapJsonp(body: string): unknown {
   const trimmed = body.trim();
@@ -249,6 +336,7 @@ function unwrapJsonp(body: string): unknown {
 /** 同花顺分时接口:data 是 `时间,价,金额,均价,量;` 拼成的串,取最后一笔有效价。 */
 export async function fetchOneThs(ref: SymbolRef, opts: FetchQuotesOptions = {}): Promise<Quote> {
   if (ref.index) throw new QuoteError('同花顺这条路不支持指数,请用 eastmoney 或 auto', 'unsupported');
+  if (ref.market === 'us') throw new QuoteError('同花顺这条路只有 A 股,美股指数请用 eastmoney 或 auto', 'unsupported');
   const url = `https://d.10jqka.com.cn/v6/time/hs_${ref.code}/last.js`;
   const body = await getText(url, opts, THS_REFERER);
   const parsed = unwrapJsonp(body) as Record<string, unknown>;

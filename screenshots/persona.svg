@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="700" viewBox="0 0 900 700" role="img" aria-label="播完交给 AI，用你设的人格重写">
+  <defs>
+    <linearGradient id="card" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#1b2431"/>
+      <stop offset="1" stop-color="#0d1218"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="900" height="700" rx="0" fill="#0b0f14"/>
+  <rect x="24" y="24" width="852" height="652" rx="24" fill="url(#card)" stroke="#26313f" stroke-width="2"/>
+  <text x="60" y="82" fill="#8fa6c0" font-size="20" font-family="'Segoe UI Emoji','Apple Color Emoji','Microsoft YaHei',system-ui,sans-serif">播完交给 AI，用你设的人格重写</text>
+  <text x="60" y="112" fill="#4f6280" font-size="15" font-family="'Segoe UI Emoji','Apple Color Emoji','Microsoft YaHei',system-ui,sans-serif">personaMode=rewrite：数字与个股原样给出去，口吻与节奏由人格和模型决定</text>
+  <line x1="60" y1="132" x2="840" y2="132" stroke="#243040" stroke-width="1"/>
+  <rect x="48" y="152" width="804" height="404" rx="16" fill="#111a24" stroke="#22303f" stroke-width="1"/>
+  <text x="76" y="194" fill="#8fa6c0" font-size="17" font-family="'Segoe UI Emoji','Apple Color Emoji','Microsoft YaHei',system-ui,sans-serif">下面这段是刚取到的真实行情素材,里面的数字一个都不要改:</text>
+  <text x="76" y="262" fill="#c3d2e4" font-size="17" font-family="'Segoe UI Emoji','Apple Color Emoji','Microsoft YaHei',system-ui,sans-serif">🐱 拟股喵喵 · 美股 · 15:55-16:05 播报</text>
+  <text x="76" y="296" fill="#c3d2e4" font-size="17" font-family="'Segoe UI Emoji','Apple Color Emoji','Microsoft YaHei',system-ui,sans-serif">🕚 美东时间 2026-10-26 15:58:00(周一)</text>
+  <text x="76" y="330" fill="#c3d2e4" font-size="16" font-family="'Segoe UI Emoji','Apple Color Emoji','Microsoft YaHei',system-ui,sans-serif">📉 大盘:道琼斯 52,215.16 -1.23% · 纳斯达克 25,955.34 -0.21% · 标普500 7,623.68 -0.52%</text>
+  <text x="76" y="364" fill="#c3d2e4" font-size="17" font-family="'Segoe UI Emoji','Apple Color Emoji','Microsoft YaHei',system-ui,sans-serif">🚀 苹果 AAPL 268.40 ▲1.06% +2.81 · 微红,还行</text>
+  <text x="76" y="398" fill="#c3d2e4" font-size="17" font-family="'Segoe UI Emoji','Apple Color Emoji','Microsoft YaHei',system-ui,sans-serif">💰 持仓 市值 $86,420.00 · 浮盈 $-1,240.00 (-1.41%)</text>
+  <text x="76" y="466" fill="#8fa6c0" font-size="17" font-family="'Segoe UI Emoji','Apple Color Emoji','Microsoft YaHei',system-ui,sans-serif">请用你对鸿说话的口吻和当前人格,把它改写成一段自然的口语播报:</text>
+  <text x="76" y="500" fill="#8fa6c0" font-size="17" font-family="'Segoe UI Emoji','Apple Color Emoji','Microsoft YaHei',system-ui,sans-serif">保留每只股票/指数的名称、代码、价格与涨跌幅,可以调整顺序、加语气词和表情;</text>
+  <text x="76" y="534" fill="#8fa6c0" font-size="17" font-family="'Segoe UI Emoji','Apple Color Emoji','Microsoft YaHei',system-ui,sans-serif">不要编造素材里没有的数字或个股,也不要说教。</text>
+  <text x="60" y="608" fill="#5f7486" font-size="16" font-family="'Segoe UI Emoji','Apple Color Emoji','Microsoft YaHei',system-ui,sans-serif">宿主实现了 host.cognition 就直接拿返回文本；没有就照这份素材自己开口，两种路都不会少数字。</text>
+  <text x="840" y="656" fill="#3f4f66" font-size="15" text-anchor="end" font-family="'Segoe UI Emoji','Apple Color Emoji','Microsoft YaHei',system-ui,sans-serif">cortico-world-stock · 拟股喵喵</text>
+</svg>

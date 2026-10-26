@@ -2,7 +2,7 @@
   "tools": [
     {
       "name": "stock_setup",
-      "description": "Report the resolved time zone, current time, A-share session phase, brief windows, watchlist and account mode. Use it first when you are unsure what time the market clock is at.",
+      "description": "Report the resolved time zone, current time, which market is in effect (A-share or US), session phase, index list, brief windows, watchlist and account mode. Use it first when you are unsure what time the market clock is at.",
       "parameters": {
         "type": "object",
         "additionalProperties": false,
@@ -18,7 +18,7 @@
     },
     {
       "name": "stock_now",
-      "description": "Fetch quotes for the watchlist (plus the three main indices) and return a lively briefing without pushing any event.",
+      "description": "Fetch quotes for the watchlist (plus the configured index list) and return a briefing without pushing any event.",
       "parameters": {
         "type": "object",
         "additionalProperties": false,
@@ -50,7 +50,7 @@
     },
     {
       "name": "stock_watch",
-      "description": "Read or change the watchlist: list, add, remove, or set it outright.",
+      "description": "Read or change the watchlist: list, add, remove, or set it outright. A-share codes and US index codes such as DJIA or NDX are both accepted.",
       "parameters": {
         "type": "object",
         "additionalProperties": false,
@@ -67,7 +67,7 @@
           },
           "symbols": {
             "type": "string",
-            "description": "Comma separated codes; required for add, remove and set."
+            "description": "Comma separated codes (600519, sz000001, DJIA); required for add, remove and set."
           }
         },
         "required": [
@@ -122,7 +122,7 @@
     },
     {
       "name": "stock_schedule",
-      "description": "Report the brief windows, what already fired today and when the next one is due.",
+      "description": "Report the brief windows for the market in effect, what already fired today and when the next one is due.",
       "parameters": {
         "type": "object",
         "additionalProperties": false,
@@ -165,7 +165,7 @@
       "key": "worlds.stock.envPrompt",
       "title": "拟股喵喵 · 环境提示词",
       "role": "envPrompt",
-      "content": "拟股喵喵(stock)负责盯 A 股:现在是北京时间 {{stock.now}},你那边 {{stock.zone}},市场状态 {{stock.phase}};关注列表 {{stock.watch}},账户数据 {{stock.account}}。早盘与尾盘收盘时段会自动播报涨跌,播完会追问一句「请问{{stock.user}},需要查看吗?」——被追问时直接调用 stock_now 把行情拿出来,不要凭记忆复述旧数字。要改关注列表用 stock_watch,要看时区与播报窗口用 stock_setup。\n"
+      "content": "拟股喵喵(stock)负责盯 {{stock.market}}:现在是 {{stock.now}},你那边 {{stock.zone}},市场状态 {{stock.phase}};大盘指数 {{stock.index}},关注列表 {{stock.watch}},账户数据 {{stock.account}}。\n\n收盘时段会自动播报涨跌(时段一律按 {{stock.market}} 的交易所时区判定),播完会追问一句「请问{{stock.user}},需要查看吗?」——被追问时直接调用 stock_now 把行情拿出来,不要凭记忆复述旧数字。播报文案会按你的人格改写,但里面的价格与涨跌幅是真实行情,不要改动。\n\n要改关注列表用 stock_watch,要看时区、生效市场与播报窗口用 stock_setup。\n"
     }
   ]
 }

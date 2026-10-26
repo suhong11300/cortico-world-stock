@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.2.0
+
+双市场（A 股 / 美股）、可配指数、播报范围与人格化播报。
+
+- 新增 `market`（`auto` / `cn` / `us`）：`auto` 按本机时区判定，`America/*` 走美股
+- 新增 `indexList` / `usIndex` / `usWindows`：指数清单与播报窗口都可配，A 股默认含科创 50，美股默认道指 / 纳指 / 标普 500
+- 美股 09:30–16:00 连续成交，新增阶段 `trading`（「盘中」）；`ClockInfo` 加 `market` / `marketLabel` / `marketZone`
+- 东财取数加第二条路：批量 `ulist.np/get` 被风控掐断（实测某些网络直接 RST）时逐只走 `stock/get`，两条都带 `fltt=2`；两条都失败才报错
+- 行情层支持美股指数（东财 `100.` 前缀，`DJI`→`DJIA`、`IXIC`→`NDX` 别名）；同花顺遇到美股明确报不支持，不静默给错数
+- 新增 `briefScope`（`both` / `watch` / `account`）：只播关注、或只播持仓盈亏
+- 新增 `personaMode`（`rewrite` / `plain`）：`rewrite` 优先走 `host.cognition`，没有就把真实行情作为素材交给会话模型按人格改写；数字与个股不允许改
+- 账户那行币种跟市场走（`¥` / `$`），盈亏带千分位（`¥+4,950.00`）
+- `envPromptVars` 从 6 键扩到 8 键（新增 `stock.market` / `stock.index`）
+- 新配图两张：`screenshots/us-brief.svg`、`screenshots/persona.svg`
+- 测试 81 → **107** 项（时区 19、行情 26、持仓 12、文案 18、整机 32）
+
 ## 0.1.0
 
 首个版本。

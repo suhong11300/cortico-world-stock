@@ -1,5 +1,5 @@
 import type { ConfigGroup, ConfigProperty } from 'cortico/core/types.ts';
-import { DEFAULT_WINDOWS } from './time.ts';
+import { DEFAULT_WINDOWS, DEFAULT_WINDOWS_BY_MARKET } from './time.ts';
 
 /** 播报事件的唤醒口径。 */
 export type BriefTrigger = 'flush' | 'debounce' | 'preempt' | 'interrupt';
@@ -16,12 +16,24 @@ export interface StockConfigSection {
   dataSource: 'auto' | 'eastmoney' | 'ths';
   /** 关注列表:600519, sz000001 300750 都行。 */
   watchlist: string;
-  /** 是否连大盘三个指数一起报。 */
+  /** 生效市场:auto 按本机时区猜(美国时区算美股),也可以钉死 cn 或 us。 */
+  market: 'auto' | 'cn' | 'us';
+  /** 是否连大盘指数一起报。 */
   showIndex: boolean;
-  /** 播报窗口,每段一个时间区间,默认早盘收盘与尾盘收盘。 */
+  /** A 股大盘指数清单,逗号分隔;默认沪指、深成、创业板、科创50。 */
+  indexList: string;
+  /** 美股指数清单,逗号分隔;默认道琼斯、纳斯达克 100、标普 500。 */
+  usIndex: string;
+  /** A 股播报窗口,每段一个时间区间,默认早盘收盘与尾盘收盘。 */
   briefWindows: string;
+  /** 美股播报窗口,按美东时间;默认收盘前 5 分钟到收盘后 5 分钟。 */
+  usWindows: string;
   /** 播报结束后是否追问一句。 */
   askAfterBrief: boolean;
+  /** 播报范围:both 关注股加持仓,watch 只看关注股,account 只看持仓盈亏。 */
+  briefScope: 'both' | 'watch' | 'account';
+  /** 人格化:rewrite 交给 AI 按当前人格改写,plain 直接用模板文案。 */
+  personaMode: 'rewrite' | 'plain';
   /** 文案风格:活泼或克制。 */
   style: 'lively' | 'calm';
   /** 播报事件用哪种唤醒口径。 */
@@ -44,9 +56,15 @@ export const STOCK_DEFAULTS: StockConfigSection = {
   user: '',
   dataSource: 'auto',
   watchlist: '600519,000001',
+  market: 'auto',
   showIndex: true,
+  indexList: 'sh000001,sz399001,sz399006,sh000688',
+  usIndex: 'DJIA,NDX,SPX',
   briefWindows: DEFAULT_WINDOWS,
+  usWindows: DEFAULT_WINDOWS_BY_MARKET.us,
   askAfterBrief: true,
+  briefScope: 'both',
+  personaMode: 'rewrite',
   style: 'lively',
   trigger: 'debounce',
   accountMode: 'none',
@@ -89,6 +107,24 @@ const ENTRIES: Entry[] = [
     prop: { type: 'string' },
   },
   {
+    key: 'worlds.stock.market',
+    title: '市场',
+    description: 'auto 按本机时区猜:美国时区报美股指数,其余报 A 股;也可以钉死 cn 或 us。',
+    prop: { type: 'string', enum: ['auto', 'cn', 'us'] },
+  },
+  {
+    key: 'worlds.stock.indexList',
+    title: 'A 股指数清单',
+    description: '逗号分隔,默认 sh000001,sz399001,sz399006,sh000688(沪指、深成、创业板、科创50)。',
+    prop: { type: 'string' },
+  },
+  {
+    key: 'worlds.stock.usIndex',
+    title: '美股指数清单',
+    description: '逗号分隔,默认 DJIA,NDX,SPX(道琼斯、纳斯达克 100、标普 500);DJI 会自动认成 DJIA。',
+    prop: { type: 'string' },
+  },
+  {
     key: 'worlds.stock.showIndex',
     title: '带大盘',
     description: '播报时连上证、深成、创业板三个指数一起报。',
@@ -101,16 +137,34 @@ const ENTRIES: Entry[] = [
     prop: { type: 'string' },
   },
   {
+    key: 'worlds.stock.usWindows',
+    title: '美股窗口',
+    description: '按美东时间,默认 15:55-16:05;每段每天只播一次。',
+    prop: { type: 'string' },
+  },
+  {
     key: 'worlds.stock.askAfterBrief',
     title: '播报后追问',
     description: '播完再推一句「请问(称呼),需要查看吗?」。',
     prop: { type: 'boolean' },
   },
   {
+    key: 'worlds.stock.briefScope',
+    title: '播报范围',
+    description: 'both 关注股加持仓盈亏,watch 只看关注股,account 只看持仓盈亏(需先接账户数据)。',
+    prop: { type: 'string', enum: ['both', 'watch', 'account'] },
+  },
+  {
     key: 'worlds.stock.style',
     title: '文案风格',
     description: '活泼带表情,或克制只报数。',
     prop: { type: 'string', enum: ['lively', 'calm'] },
+  },
+  {
+    key: 'worlds.stock.personaMode',
+    title: '人格化改写',
+    description: 'rewrite 把行情素材交给 AI 按当前人格改写,plain 直接用模板文案。',
+    prop: { type: 'string', enum: ['rewrite', 'plain'] },
   },
   {
     key: 'worlds.stock.trigger',

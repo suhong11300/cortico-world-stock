@@ -15,7 +15,7 @@ import {
   type BookSummary,
   type Holding,
 } from './account.ts';
-import { askText, composeBrief, type BriefStyle } from './copy.ts';
+import { askText, composeBrief, marketTimeLabel, signedMoney, wrapForPersona, type BriefScope, type BriefStyle } from './copy.ts';
 import { money, percent, signed } from './format.ts';
 import {
   fetchQuotes,
@@ -25,7 +25,9 @@ import {
   type SymbolRef,
 } from './quote.ts';
 import {
+  DEFAULT_WINDOWS_BY_MARKET,
   dateKeyOf,
+  guessMarket,
   matchWindow,
   parseWindows,
   phaseText,
@@ -35,13 +37,17 @@ import {
   zoneParts,
   type BriefWindow,
   type ClockInfo,
+  type MarketId,
 } from './time.ts';
 import { STOCK_CONFIG_GROUP, type BriefTrigger, type StockConfigSection } from './config.ts';
 
 const ENV_PROMPT_FILE = fileURLToPath(new URL('./ENV_PROMPT.md', import.meta.url));
 const DEFAULT_TICK_MS = 30000;
-/** 大盘三指数:上证、深成、创业板。 */
-const INDEX_SYMBOLS = 'sh000001,sz399001,sz399006';
+/** 配置里没写指数清单时的兜底:沪指/深成/创业板/科创50,道琼斯/纳指 100/标普 500。 */
+const FALLBACK_INDEX: Record<MarketId, string> = {
+  cn: 'sh000001,sz399001,sz399006,sh000688',
+  us: 'DJIA,NDX,SPX',
+};
 
 export interface StockState {
   version: 1;
@@ -113,14 +119,14 @@ export const STOCK_TOOL_DECLS: ReadonlyArray<Omit<ToolDef, 'handler'>> = [
   {
     name: 'stock_setup',
     description:
-      'Report the resolved time zone, current time, A-share session phase, brief windows, watchlist and account mode. Use it first when you are unsure what time the market clock is at.',
+      'Report the resolved time zone, current time, which market is in effect (A-share or US), session phase, index list, brief windows, watchlist and account mode. Use it first when you are unsure what time the market clock is at.',
     tags: ['read'],
     parameters: { type: 'object', additionalProperties: false, properties: {} },
   },
   {
     name: 'stock_now',
     description:
-      'Fetch quotes for the watchlist (plus the three main indices) and return a lively briefing without pushing any event.',
+      'Fetch quotes for the watchlist (plus the configured index list) and return a briefing without pushing any event.',
     tags: ['read'],
     parameters: { type: 'object', additionalProperties: false, properties: {} },
   },
@@ -133,14 +139,18 @@ export const STOCK_TOOL_DECLS: ReadonlyArray<Omit<ToolDef, 'handler'>> = [
   },
   {
     name: 'stock_watch',
-    description: 'Read or change the watchlist: list, add, remove, or set it outright.',
+    description:
+      'Read or change the watchlist: list, add, remove, or set it outright. A-share codes and US index codes such as DJIA or NDX are both accepted.',
     tags: ['write'],
     parameters: {
       type: 'object',
       additionalProperties: false,
       properties: {
         action: { type: 'string', enum: ['list', 'add', 'remove', 'set'], description: 'What to do.' },
-        symbols: { type: 'string', description: 'Comma separated codes; required for add, remove and set.' },
+        symbols: {
+          type: 'string',
+          description: 'Comma separated codes (600519, sz000001, DJIA); required for add, remove and set.',
+        },
       },
       required: ['action'],
     },
@@ -163,7 +173,8 @@ export const STOCK_TOOL_DECLS: ReadonlyArray<Omit<ToolDef, 'handler'>> = [
   },
   {
     name: 'stock_schedule',
-    description: 'Report the brief windows, what already fired today and when the next one is due.',
+    description:
+      'Report the brief windows for the market in effect, what already fired today and when the next one is due.',
     tags: ['read'],
     parameters: { type: 'object', additionalProperties: false, properties: {} },
   },
@@ -192,8 +203,39 @@ export class StockWorld implements World {
     return own || this.opts.timezone || 'Asia/Shanghai';
   }
 
+  /** 生效市场:配置钉死就用配置,auto 按本机时区猜(美国时区算美股)。 */
+  private market(): MarketId {
+    const pinned = this.opts.cfg.market;
+    if (pinned === 'cn' || pinned === 'us') return pinned;
+    return guessMarket(this.zone());
+  }
+
   private clock(): ClockInfo {
-    return resolveClock(this.zone(), this.now());
+    return resolveClock(this.zone(), this.now(), this.market());
+  }
+
+  /** 播报范围:关注股 / 持仓 / 两者。 */
+  private scope(): BriefScope {
+    const scope = this.opts.cfg.briefScope;
+    return scope === 'watch' || scope === 'account' ? scope : 'both';
+  }
+
+  /** 该市场的播报窗口:美股走 usWindows,其余走 briefWindows。 */
+  private windows(): { windows: BriefWindow[]; problems: string[] } {
+    const market = this.market();
+    const text =
+      market === 'us'
+        ? this.opts.cfg.usWindows || DEFAULT_WINDOWS_BY_MARKET.us
+        : this.opts.cfg.briefWindows || DEFAULT_WINDOWS_BY_MARKET.cn;
+    return parseWindows(text);
+  }
+
+  /** 指数清单:两个市场各一份,空则回落到兜底值;showIndex 关掉就一条都不取。 */
+  private indexRefs(): SymbolRef[] {
+    if (!this.opts.cfg.showIndex) return [];
+    const market = this.market();
+    const raw = (market === 'us' ? this.opts.cfg.usIndex : this.opts.cfg.indexList) || FALLBACK_INDEX[market];
+    return parseSymbols(raw).symbols;
   }
 
   private quiet(level: 'info' | 'warn' | 'error', message: string): void {
@@ -225,10 +267,29 @@ export class StockWorld implements World {
     return '';
   }
 
+  /** 关注列表;播报范围含持仓时把持仓代码并进来(去重),账户那一段才有行情可用。 */
   private watchRefs(): { symbols: SymbolRef[]; problems: string[] } {
     const parsed = parseSymbols(this.opts.cfg.watchlist ?? '');
     const limit = Math.max(1, Math.min(Number(this.opts.cfg.maxWatch) || 12, 50));
-    return { symbols: parsed.symbols.slice(0, limit), problems: parsed.problems };
+    if (this.scope() === 'watch' || this.accountMode() === 'none') {
+      return { symbols: parsed.symbols.slice(0, limit), problems: parsed.problems };
+    }
+    const scopeIsAccount = this.scope() === 'account';
+    const main = scopeIsAccount ? [] : parsed.symbols.slice(0, limit);
+    const seen = new Set(main.map((s) => s.secid));
+    const problems = [...parsed.problems];
+    const extra: SymbolRef[] = [];
+    for (const holding of this.holdings().holdings) {
+      const ref = normalizeSymbol(holding.code);
+      if (!ref) {
+        problems.push(holding.code);
+        continue;
+      }
+      if (seen.has(ref.secid)) continue;
+      seen.add(ref.secid);
+      extra.push(ref);
+    }
+    return { symbols: [...main, ...extra].slice(0, 50), problems };
   }
 
   private accountMode(): AccountMode {
@@ -265,7 +326,7 @@ export class StockWorld implements World {
   /** 一次取回关注股与指数;指数只认配置开关,不吃关注列表。 */
   private async collect(): Promise<{ quotes: Quote[]; indices: Quote[]; problems: string[] }> {
     const { symbols, problems } = this.watchRefs();
-    const indexRefs = this.opts.cfg.showIndex ? parseSymbols(INDEX_SYMBOLS).symbols : [];
+    const indexRefs = this.indexRefs();
     const all = [...symbols, ...indexRefs];
     if (!all.length) return { quotes: [], indices: [], problems };
     const result = await fetchQuotes(all, {
@@ -290,9 +351,30 @@ export class StockWorld implements World {
       account: loaded.book,
       user: this.user(),
       style: (this.opts.cfg.style === 'calm' ? 'calm' : 'lively') as BriefStyle,
+      scope: this.scope(),
       problems: [...problems, ...loaded.problems],
     });
     return { text, quotes };
+  }
+
+  /**
+   * 人格化:优先走宿主的 cognition 通道(上下文、轮数、模型都归 Persona);
+   * 宿主没实现就退回「把素材与改写要求整段推给会话模型」;plain 模式直接用模板文案。
+   */
+  private async forPersona(host: WorldHost | undefined, text: string): Promise<string> {
+    if (this.opts.cfg.personaMode === 'plain') return text;
+    const user = this.user();
+    const cognition = host?.cognition;
+    if (cognition) {
+      try {
+        const result = await cognition.request({ brief: wrapForPersona(text, user) });
+        if ('text' in result && result.text.trim()) return result.text.trim();
+        this.quiet('warn', 'cognition 改写没拿到文本,退回素材直推:' + ('error' in result ? result.error : '空结果'));
+      } catch (err) {
+        this.quiet('warn', 'cognition 改写抛错,退回素材直推:' + (err instanceof Error ? err.message : String(err)));
+      }
+    }
+    return wrapForPersona(text, user);
   }
 
   /** 播报一次并把结果落盘;取不到行情时不推事件,只记 lastError。 */
@@ -301,6 +383,7 @@ export class StockWorld implements World {
     try {
       const composed = await this.compose(window);
       const host = this.host;
+      const text = await this.forPersona(host, composed.text);
       if (host) {
         const trigger = (this.opts.cfg.trigger ?? 'debounce') as BriefTrigger;
         await host.pushEvent(
@@ -310,7 +393,7 @@ export class StockWorld implements World {
             source: this.id,
             origin: 'internal',
             senderKey: this.id,
-            text: composed.text,
+            text,
           },
           { trigger },
         );
@@ -352,7 +435,7 @@ export class StockWorld implements World {
         await this.announce(clock, true);
       }
       if (!this.opts.cfg.autoBrief) return;
-      const { windows } = parseWindows(this.opts.cfg.briefWindows ?? '');
+      const { windows } = this.windows();
       if (!windows.length || clock.phase === 'weekend') return;
       const hit = matchWindow(windows, clock.minutes);
       if (!hit) return;
@@ -370,9 +453,9 @@ export class StockWorld implements World {
     const { symbols } = this.watchRefs();
     const lines = [
       freshDay ? '🐱 拟股喵喵 · 新的一天已经对表' : '🐱 拟股喵喵上线',
-      '🕚 北京时间 ' + clock.marketText + '(' + weekdayText(clock.weekday) + ')',
+      '🕚 ' + marketTimeLabel(clock.market) + ' ' + clock.marketText + '(' + weekdayText(clock.weekday) + ')',
       '🌏 时区 ' + clock.zone + '(' + clock.offsetLabel + ')' + (clock.zone === clock.marketZone ? '' : ' · 本机 ' + clock.localText),
-      '📊 市场状态:' + phaseText(clock.phase) + ' · 关注 ' + symbols.length + ' 只 · 账户 ' + this.accountMode(),
+      '📊 ' + clock.marketLabel + ' · ' + phaseText(clock.phase) + ' · 窗口 ' + windowText(this.windows().windows) + ' · 关注 ' + symbols.length + ' 只 · 账户 ' + this.accountMode(),
     ];
     if (this.state.lastError) lines.push('⚠️ 上次取数失败:' + this.state.lastError.message);
     await host.pushEvent(
@@ -415,8 +498,11 @@ export class StockWorld implements World {
       : '空';
     const mode = this.accountMode();
     const account = mode === 'none' ? '未接账户' : mode === 'manual' ? '手填持仓' : '持仓文件';
+    const indices = this.indexRefs().map((s) => s.code).join('、');
     return {
       'stock.now': clock.marketText,
+      'stock.market': clock.marketLabel + '(' + clock.marketZone + ')',
+      'stock.index': indices || '未开启',
       'stock.zone': clock.zone,
       'stock.phase': clock.phaseText,
       'stock.watch': watch,
@@ -475,14 +561,14 @@ export class StockWorld implements World {
       handler: async () => {
         const clock = this.clock();
         const { symbols, problems } = this.watchRefs();
-        const { windows, problems: bad } = parseWindows(this.opts.cfg.briefWindows ?? '');
+        const { windows, problems: bad } = this.windows();
         const fired = Object.keys(this.state.fired).filter((k) => k.startsWith(clock.dateKey + '#')).length;
         const lines = [
           '🐱 拟股喵喵 · 环境自检',
           '🕚 现在:北京时间 ' + clock.marketText + '(' + weekdayText(clock.weekday) + ')',
           '🌏 时区:' + clock.zone + '(' + clock.offsetLabel + ')' + (clock.zone === clock.marketZone ? '' : ' · 你那边 ' + clock.localText),
-          '📊 市场状态:' + clock.phaseText,
-          '📡 数据源:' + this.opts.cfg.dataSource + ' · 大盘指数 ' + (this.opts.cfg.showIndex ? '开' : '关'),
+          '📊 ' + clock.marketLabel + ' · 市场状态 ' + clock.phaseText + ' · 时区 ' + clock.marketZone,
+          '📡 数据源:' + this.opts.cfg.dataSource + ' · 指数 ' + (this.opts.cfg.showIndex ? this.indexRefs().map((s) => s.code).join('、') : '关') + ' · 人格化 ' + this.opts.cfg.personaMode,
           '🔎 关注:' + (symbols.length ? symbols.map((s) => s.code).join('、') : '空') + (problems.length ? ' · 认不出 ' + problems.join('、') : ''),
           '🗓 播报窗口:' + (windows.length ? windowText(windows) : '未配置') + ' · 今日已播 ' + fired + ' 次',
           '💰 账户:' + this.accountMode() + (this.opts.cfg.holdingsFile ? '(' + this.opts.cfg.holdingsFile + ')' : ''),
@@ -605,7 +691,7 @@ export class StockWorld implements World {
             const pnl = p.pnl === null ? '成本价未填' : signed(p.pnl) + '(' + percent(p.pnlPct ?? 0) + ')';
             lines.push('· ' + p.name + ' ' + p.code + ' ' + p.shares + ' 股 @ ' + money(p.price) + ' 市值 ¥' + money(p.marketValue) + ' ' + pnl);
           }
-          lines.push('合计市值 ¥' + money(book.marketValue) + (book.costValue > 0 ? ' · 浮盈 ¥' + signed(book.pnl) + '(' + percent(book.pnlPct) + ')' : ''));
+          lines.push('合计市值 ¥' + money(book.marketValue) + (book.costValue > 0 ? ' · 浮盈 ' + signedMoney('¥', book.pnl) + '(' + percent(book.pnlPct) + ')' : ''));
           if (book.missing.length) lines.push('❓ 缺行情:' + book.missing.join('、'));
           if (problems.length) lines.push('⚠️ ' + problems.join('、'));
           return lines.join('\n');
@@ -621,8 +707,8 @@ export class StockWorld implements World {
       ...STOCK_TOOL_DECLS[5],
       handler: async () => {
         const clock = this.clock();
-        const { windows, problems } = parseWindows(this.opts.cfg.briefWindows ?? '');
-        const lines = ['🗓 播报窗口:' + (windows.length ? windowText(windows) : '未配置')];
+        const { windows, problems } = this.windows();
+        const lines = ['🗓 ' + clock.marketLabel + ' 播报窗口:' + (windows.length ? windowText(windows) : '未配置')];
         if (problems.length) lines.push('⚠️ 认不出:' + problems.join('、'));
         for (const w of windows) {
           const key = clock.dateKey + '#' + w.index;
@@ -633,7 +719,7 @@ export class StockWorld implements World {
         const pending = windows.filter((w) => !this.state.fired[clock.dateKey + '#' + w.index]);
         const upcoming = pending.find((w) => w.end >= clock.minutes) ?? pending[0];
         lines.push(upcoming ? '⏭ 下一段:' + upcoming.label : '✅ 今天的窗口都播完了');
-        lines.push('🕚 现在北京时间 ' + clock.marketText + ' · ' + clock.phaseText);
+        lines.push('🕚 现在 ' + marketTimeLabel(clock.market) + ' ' + clock.marketText + ' · ' + clock.phaseText);
         if (!this.opts.cfg.autoBrief) lines.push('⏸ 自动播报是关的,只有手动调用才会播。');
         return lines.join('\n');
       },
