@@ -1,0 +1,171 @@
+{
+  "tools": [
+    {
+      "name": "stock_setup",
+      "description": "Report the resolved time zone, current time, A-share session phase, brief windows, watchlist and account mode. Use it first when you are unsure what time the market clock is at.",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      },
+      "tags": [
+        "read"
+      ],
+      "summary": {
+        "zh": "报时区、当前时间、市场状态、播报窗口、关注列表与账户模式。",
+        "en": "Reports the resolved clock, session phase, brief windows, watchlist and account mode."
+      }
+    },
+    {
+      "name": "stock_now",
+      "description": "Fetch quotes for the watchlist (plus the three main indices) and return a lively briefing without pushing any event.",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      },
+      "tags": [
+        "read"
+      ],
+      "summary": {
+        "zh": "立刻取一次行情并给出播报文案,不推送事件。",
+        "en": "Fetches quotes and returns a briefing without pushing an event."
+      }
+    },
+    {
+      "name": "stock_brief",
+      "description": "Do a full briefing on demand: fetch quotes, push the stock.brief event, then the \"want to see it?\" follow-up. Same text the scheduled briefing would produce.",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      },
+      "tags": [
+        "read"
+      ],
+      "summary": {
+        "zh": "完整播报一次:推 stock.brief 与追问事件。",
+        "en": "Runs a full briefing and pushes the brief and follow-up events."
+      }
+    },
+    {
+      "name": "stock_watch",
+      "description": "Read or change the watchlist: list, add, remove, or set it outright.",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "list",
+              "add",
+              "remove",
+              "set"
+            ],
+            "description": "What to do."
+          },
+          "symbols": {
+            "type": "string",
+            "description": "Comma separated codes; required for add, remove and set."
+          }
+        },
+        "required": [
+          "action"
+        ]
+      },
+      "tags": [
+        "write"
+      ],
+      "summary": {
+        "zh": "查看或增删关注列表。",
+        "en": "Reads or changes the watchlist."
+      }
+    },
+    {
+      "name": "stock_account",
+      "description": "Inspect or switch how your holdings are supplied: off, hand-filled, or a file exported from a broker. Never logs in anywhere.",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "show",
+              "off",
+              "manual",
+              "csv"
+            ],
+            "description": "show leaves it unchanged."
+          },
+          "holdings": {
+            "type": "string",
+            "description": "For manual: code:shares:cost, comma separated."
+          },
+          "file": {
+            "type": "string",
+            "description": "For csv: absolute path of the exported holdings table."
+          }
+        },
+        "required": [
+          "action"
+        ]
+      },
+      "tags": [
+        "write"
+      ],
+      "summary": {
+        "zh": "查看或切换持仓来源(关/手填/文件),不登录任何券商。",
+        "en": "Inspects or switches the holdings source; never logs in to a broker."
+      }
+    },
+    {
+      "name": "stock_schedule",
+      "description": "Report the brief windows, what already fired today and when the next one is due.",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      },
+      "tags": [
+        "read"
+      ],
+      "summary": {
+        "zh": "报播报窗口、今天播过几次、下一段什么时候。",
+        "en": "Reports brief windows, what fired today and when the next one is due."
+      }
+    }
+  ],
+  "events": [
+    {
+      "type": "stock.ready",
+      "description": {
+        "zh": "挂载或跨日时先对表:报出时区、北京时间与市场状态。",
+        "en": "On mount or on a new day, fixes the time zone, Beijing time and session phase."
+      }
+    },
+    {
+      "type": "stock.brief",
+      "description": {
+        "zh": "收盘时段的涨跌播报,正文就是完整文案。",
+        "en": "The closing-window briefing; its text is the whole message."
+      }
+    },
+    {
+      "type": "stock.ask",
+      "description": {
+        "zh": "播报后的追问「请问(称呼),需要查看吗?」。",
+        "en": "The follow-up question asked right after a briefing."
+      }
+    }
+  ],
+  "prompts": [
+    {
+      "key": "worlds.stock.envPrompt",
+      "title": "拟股喵喵 · 环境提示词",
+      "role": "envPrompt",
+      "content": "拟股喵喵(stock)负责盯 A 股:现在是北京时间 {{stock.now}},你那边 {{stock.zone}},市场状态 {{stock.phase}};关注列表 {{stock.watch}},账户数据 {{stock.account}}。早盘与尾盘收盘时段会自动播报涨跌,播完会追问一句「请问{{stock.user}},需要查看吗?」——被追问时直接调用 stock_now 把行情拿出来,不要凭记忆复述旧数字。要改关注列表用 stock_watch,要看时区与播报窗口用 stock_setup。\n"
+    }
+  ]
+}

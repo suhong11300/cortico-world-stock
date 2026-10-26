@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="560" viewBox="0 0 560 560" role="img" aria-label="拟股喵喵">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.7" y2="1">
+      <stop offset="0" stop-color="#1f2b3a"/>
+      <stop offset="1" stop-color="#0b0f14"/>
+    </linearGradient>
+    <linearGradient id="trend" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#ff3b30"/>
+      <stop offset="1" stop-color="#ff9f6b"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="560" height="560" rx="124" fill="url(#bg)"/>
+  <path d="M148 190 L140 92 L226 142 Z" fill="#eaf1fb"/>
+  <path d="M412 190 L420 92 L334 142 Z" fill="#eaf1fb"/>
+  <ellipse cx="280" cy="262" rx="148" ry="130" fill="#eaf1fb"/>
+  <path d="M250 148 L258 184" stroke="#c2d2e6" stroke-width="10" stroke-linecap="round"/>
+  <path d="M280 144 L280 182" stroke="#c2d2e6" stroke-width="10" stroke-linecap="round"/>
+  <path d="M310 148 L302 184" stroke="#c2d2e6" stroke-width="10" stroke-linecap="round"/>
+  <path d="M192 288 L224 250 L258 276" fill="none" stroke="url(#trend)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M302 276 L336 238 L370 264" fill="none" stroke="url(#trend)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M264 312 L296 312 L280 332 Z" fill="#ffb04a"/>
+  <path d="M280 332 L280 344" stroke="#1f2b3a" stroke-width="7" stroke-linecap="round"/>
+  <path d="M280 344 C268 358 252 354 246 344" fill="none" stroke="#1f2b3a" stroke-width="7" stroke-linecap="round"/>
+  <path d="M280 344 C292 358 308 354 314 344" fill="none" stroke="#1f2b3a" stroke-width="7" stroke-linecap="round"/>
+  <path d="M150 472 L222 448 L286 464 L352 420 L410 402" fill="none" stroke="url(#trend)" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="410" cy="402" r="16" fill="#ff5a3c"/>
+</svg>

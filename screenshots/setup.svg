@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="600" viewBox="0 0 900 600" role="img" aria-label="随时问它现在什么状况">
+  <defs>
+    <linearGradient id="card" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#1b2431"/>
+      <stop offset="1" stop-color="#0d1218"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="900" height="600" rx="0" fill="#0b0f14"/>
+  <rect x="24" y="24" width="852" height="552" rx="24" fill="url(#card)" stroke="#26313f" stroke-width="2"/>
+  <text x="60" y="82" fill="#8fa6c0" font-size="20" font-family="'Segoe UI Emoji','Apple Color Emoji','Microsoft YaHei',system-ui,sans-serif">随时问它现在什么状况</text>
+  <text x="60" y="112" fill="#4f6280" font-size="16" font-family="'Segoe UI Emoji','Apple Color Emoji','Microsoft YaHei',system-ui,sans-serif">stock_setup 无需参数：报时区、现场时间、市场状态、数据源与关注列表</text>
+  <line x1="60" y1="132" x2="840" y2="132" stroke="#243040" stroke-width="1"/>
+  <text x="60" y="176" fill="#e8f0fa" font-size="24" font-family="'Segoe UI Emoji','Apple Color Emoji','Microsoft YaHei',system-ui,sans-serif">🐱 拟股喵喵 · 环境自检</text>
+  <text x="60" y="222" fill="#c3d2e4" font-size="21" font-family="'Segoe UI Emoji','Apple Color Emoji','Microsoft YaHei',system-ui,sans-serif">🕚 现在:北京时间 2026-10-26 15:26:00(周一)</text>
+  <text x="60" y="262" fill="#c3d2e4" font-size="21" font-family="'Segoe UI Emoji','Apple Color Emoji','Microsoft YaHei',system-ui,sans-serif">🌏 时区:Asia/Shanghai(UTC+08:00)</text>
+  <text x="60" y="302" fill="#c3d2e4" font-size="21" font-family="'Segoe UI Emoji','Apple Color Emoji','Microsoft YaHei',system-ui,sans-serif">📊 市场状态:已收盘</text>
+  <text x="60" y="342" fill="#c3d2e4" font-size="21" font-family="'Segoe UI Emoji','Apple Color Emoji','Microsoft YaHei',system-ui,sans-serif">📡 数据源:auto · 大盘指数 开</text>
+  <text x="60" y="382" fill="#c3d2e4" font-size="21" font-family="'Segoe UI Emoji','Apple Color Emoji','Microsoft YaHei',system-ui,sans-serif">🔎 关注:600519、000001、000002</text>
+  <text x="60" y="422" fill="#c3d2e4" font-size="21" font-family="'Segoe UI Emoji','Apple Color Emoji','Microsoft YaHei',system-ui,sans-serif">🗓 播报窗口:11:25-11:35、14:55-15:05 · 今日已播 0 次</text>
+  <text x="60" y="462" fill="#c3d2e4" font-size="21" font-family="'Segoe UI Emoji','Apple Color Emoji','Microsoft YaHei',system-ui,sans-serif">💰 账户:none</text>
+  <text x="840" y="556" fill="#3f4f66" font-size="15" text-anchor="end" font-family="'Segoe UI Emoji','Apple Color Emoji','Microsoft YaHei',system-ui,sans-serif">cortico-world-stock · 拟股喵喵</text>
+</svg>

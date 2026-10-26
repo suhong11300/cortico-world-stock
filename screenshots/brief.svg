@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="700" viewBox="0 0 900 700" role="img" aria-label="在对话里，到点自己开口">
+  <defs>
+    <linearGradient id="card" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#1b2431"/>
+      <stop offset="1" stop-color="#0d1218"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="900" height="700" rx="0" fill="#0b0f14"/>
+  <rect x="24" y="24" width="852" height="652" rx="24" fill="url(#card)" stroke="#26313f" stroke-width="2"/>
+  <text x="60" y="82" fill="#8fa6c0" font-size="20" font-family="'Segoe UI Emoji','Apple Color Emoji','Microsoft YaHei',system-ui,sans-serif">在对话里，到点自己开口</text>
+  <text x="60" y="112" fill="#4f6280" font-size="16" font-family="'Segoe UI Emoji','Apple Color Emoji','Microsoft YaHei',system-ui,sans-serif">11:25-11:35 窗口命中后自动推 stock.brief，再推一条 stock.ask 追问</text>
+  <line x1="60" y1="132" x2="840" y2="132" stroke="#243040" stroke-width="1"/>
+  <text x="60" y="176" fill="#e8f0fa" font-size="24" font-family="'Segoe UI Emoji','Apple Color Emoji','Microsoft YaHei',system-ui,sans-serif">🐱 拟股喵喵 · 11:25-11:35 播报</text>
+  <text x="60" y="222" fill="#c3d2e4" font-size="21" font-family="'Segoe UI Emoji','Apple Color Emoji','Microsoft YaHei',system-ui,sans-serif">🕚 北京时间 2026-10-26 11:29:00(周一)</text>
+  <text x="60" y="262" fill="#c3d2e4" font-size="21" font-family="'Segoe UI Emoji','Apple Color Emoji','Microsoft YaHei',system-ui,sans-serif">📊 市场状态:早盘进行中</text>
+  <text x="60" y="302" fill="#c3d2e4" font-size="21" font-family="'Segoe UI Emoji','Apple Color Emoji','Microsoft YaHei',system-ui,sans-serif">📉 大盘:上证指数 3,697.52 +0.42% · 深证成指 11,534.38 +0.36%</text>
+  <text x="60" y="342" fill="#c3d2e4" font-size="21" font-family="'Segoe UI Emoji','Apple Color Emoji','Microsoft YaHei',system-ui,sans-serif">🔎 关注 3 只:涨 2、跌 1、平 0</text>
+  <text x="60" y="382" fill="#c3d2e4" font-size="21" font-family="'Segoe UI Emoji','Apple Color Emoji','Microsoft YaHei',system-ui,sans-serif">🚀 贵州茅台 600519 1,350.00 ▲5.62% +71.80 · 冲得有点猛</text>
+  <text x="60" y="422" fill="#c3d2e4" font-size="21" font-family="'Segoe UI Emoji','Apple Color Emoji','Microsoft YaHei',system-ui,sans-serif">🌤 平安银行 000001 11.20 ▲0.30% +0.03 · 微红,还行</text>
+  <text x="60" y="462" fill="#c3d2e4" font-size="21" font-family="'Segoe UI Emoji','Apple Color Emoji','Microsoft YaHei',system-ui,sans-serif">☁️ 万科A 000002 8.66 ▼1.14% -0.10 · 有点凉</text>
+  <text x="60" y="502" fill="#c3d2e4" font-size="21" font-family="'Segoe UI Emoji','Apple Color Emoji','Microsoft YaHei',system-ui,sans-serif">💧 成交额合计 4.00 亿</text>
+  <text x="60" y="542" fill="#c3d2e4" font-size="21" font-family="'Segoe UI Emoji','Apple Color Emoji','Microsoft YaHei',system-ui,sans-serif">💰 持仓 市值 ¥135,000.00 · 浮盈 ¥+5000.00 (+3.85%)</text>
+  <text x="60" y="582" fill="#e8f0fa" font-size="24" font-family="'Segoe UI Emoji','Apple Color Emoji','Microsoft YaHei',system-ui,sans-serif">❓ 请问鸿,需要查看吗?</text>
+  <text x="840" y="656" fill="#3f4f66" font-size="15" text-anchor="end" font-family="'Segoe UI Emoji','Apple Color Emoji','Microsoft YaHei',system-ui,sans-serif">cortico-world-stock · 拟股喵喵</text>
+</svg>
