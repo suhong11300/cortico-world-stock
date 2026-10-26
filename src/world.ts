@@ -185,6 +185,7 @@ export class StockWorld implements World {
 
   private host?: WorldHost;
   private timer?: ReturnType<typeof setInterval>;
+  private greetTimer?: ReturnType<typeof setTimeout>;
   private state: StockState;
   private readonly stateFile: string;
 
@@ -414,6 +415,7 @@ export class StockWorld implements World {
       if (window) this.state.fired[clock.dateKey + '#' + window.index] = nowIso(this.zone());
       this.state.lastBrief = { at: nowIso(this.zone()), window: window?.label ?? '手动' };
       writeState(this.stateFile, this.state);
+      this.quiet('info', '已播报 ' + (window?.label ?? '手动') + ' · ' + text.split('\n').length + ' 行');
       return composed.text;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -475,18 +477,35 @@ export class StockWorld implements World {
     this.host = host;
     const clock = this.clock();
     this.state = readState(this.stateFile, clock.dateKey);
-    await this.announce(clock, false);
+    // 问候只是打个招呼:事件通道还没就绪时不能连累定时器,失败就过两秒补一次。
+    try {
+      await this.announce(clock, false);
+    } catch (err) {
+      this.quiet('warn', '上线问候没投出去,2 秒后补一次:' + (err instanceof Error ? err.message : String(err)));
+      this.greetTimer = setTimeout(() => {
+        void this.announce(clock, false).catch(() => undefined);
+      }, 2000);
+      this.greetTimer.unref?.();
+    }
     const interval = Math.max(5000, Number(this.opts.tickMs) || DEFAULT_TICK_MS);
     this.timer = setInterval(() => {
       void this.tick();
     }, interval);
     this.timer.unref?.();
+    const { windows } = this.windows();
+    const fired = Object.keys(this.state.fired).filter((k) => k.startsWith(clock.dateKey)).length;
+    this.quiet(
+      'info',
+      '就绪:' + clock.marketLabel + ' ' + clock.marketText + ' · ' + phaseText(clock.phase) + ' · 窗口 ' + windowText(windows) + ' · 今日已播 ' + fired + ' 次',
+    );
     await this.tick();
   }
 
   async stop(): Promise<void> {
     if (this.timer) clearInterval(this.timer);
     this.timer = undefined;
+    if (this.greetTimer) clearTimeout(this.greetTimer);
+    this.greetTimer = undefined;
     this.host = undefined;
   }
 
