@@ -1,6 +1,12 @@
-# 拟股喵喵（cortico-world-stock）
+# 拟股喵喵 · cortico-world-stock
 
-Cortico World 扩展：把行情搬进对话，并且按`你所在地方的时间`开口。人在国内就报 A 股（沪指、深成、创业板、科创 50 都能自己配），人在美国就自动换成美股（道指、纳指、标普 500），播报窗口也跟着当地收盘走。
+[![npm](https://img.shields.io/npm/v/cortico-world-stock?label=npm&color=cb3837)](https://www.npmjs.com/package/cortico-world-stock)
+[![license](https://img.shields.io/npm/l/cortico-world-stock?color=blue)](./LICENSE)
+[![node](https://img.shields.io/badge/node-%E2%89%A5%2022-43853d)](https://nodejs.org)
+[![world api](https://img.shields.io/badge/cortico%20world%20api-6-8b5cf6)](https://github.com/Pal-AI-Lab/cortico)
+
+
+按本地时区在市场窗口播报行情。覆盖自选股与大盘指数，A 股与美股可切换，指数清单可自定义；接入账户后可选播报持仓盈亏；文案可按设定人格改写。
 
 - **先对时**：每次开工先定本机时区与当前时间，市场时钟按生效市场算（A 股 `Asia/Shanghai`、美股 `America/New_York`），每条播报都带这句，不会拿错日期做判断。
 - **只报真数**：指数与个股全部来自公开行情接口；取不到就说没取到，绝不凭记忆编数字。
@@ -10,22 +16,42 @@ Cortico World 扩展：把行情搬进对话，并且按`你所在地方的时�
 - **人格化**：`personaMode=rewrite` 时，播报由 AI 按你给桌宠的人格重写，但数字与个股不许改。
 - **说话好玩**：▲▼ 箭头加九档表情短语，风格可切 `lively` / `calm`。
 
+*Cortico World · `kind: world` · `api: 6` · `tags: companion / internet` · MIT · 107 项单测通过、契约校验通过*
+
+## 目录
+
+- [为什么需要它](#为什么需要它)
+- [安装](#安装)
+- [配置](#配置)
+- [工具](#工具)
+- [事件](#事件)
+- [时区与市场](#时区与市场)
+- [播报窗口与打卡](#播报窗口与打卡)
+- [指数清单](#指数清单)
+- [数据源](#数据源)
+- [持仓与播报范围](#持仓与播报范围)
+- [人格化播报](#人格化播报)
+- [播报长什么样](#播报长什么样)
+- [验证](#验证)
+- [限制](#限制)
+- [配图](#配图)
+- [许可](#许可)
+
 ## 为什么需要它
 
 桌宠在后台的时候你未必盯着行情软件。它在窗口内自己开口，你不问也能知道手上的票今天什么姿势；人在国外也不必换算时差 —— 它按你当地的收盘时间说美股。想细看再问一句，不想看它就闭嘴。
 
 ## 安装
 
-### 从 npm 装进 Coopanion
+面板安装（推荐）：
 
-1. 在 `Coopanion/data/extensions/package.json` 的 `dependencies` 里加 `"cortico-world-stock": "^0.2.0"`。
-2. 在 `Coopanion/data/extensions` 下装依赖。
-3. 改 `Coopanion/data/home/companion/config.json`，给 `worlds` 加一段：`"stock": { "enabled": true }`。
-4. 重启 Coopanion —— 宿主只在启动时扫扩展，新装的一定是 pending-restart。
+1. 打开 Coopanion WebUI（端口以 `config.json` 的 `web.port` 为准，默认 `17788`），进入**高级模式 → 扩展**。
+2. 在扩展市场搜 `cortico-world-stock`，或在**手动安装**里选「从 npm 安装」填包名。
+3. 安装后重启 Coopanion：扩展在宿主启动时扫描，新装的处于 `pending-restart`。
+4. 进 **World 总览** 打开「拟股喵喵」；面板路由是 `#/provider/world%3Astock`。
+5. 在 World 面板里配关注列表、市场与播报窗口，标了 `x-hot` 的项改完即时生效。
 
-### 从源码（link）
-
-把本目录以 `link:` 形式写进同一个 `dependencies`，其余同上。宿主只认 `extensions/package.json` 的 `dependencies`，光在 `node_modules` 里建链接不会被发现。
+从源码装（开发期）：把包目录以 `link:` 形式写进 `extensions/package.json` 的 `dependencies`，再重启 Coopanion —— 宿主只认 `dependencies`，光在 `node_modules` 建链接不会被发现。
 
 ## 配置
 
@@ -75,7 +101,7 @@ Cortico World 扩展：把行情搬进对话，并且按`你所在地方的时�
 | `stock.brief` | 一份播报，`meta` 里有市场、窗口序号与条数 |
 | `stock.ask` | 播报后的追问，走 `flush` 触发 |
 
-## 时区、市场与时间
+## 时区与市场
 
 `resolveClock(zone, at, market)` 一次给出：市场名、你的当地时间、市场当地的时间、时区偏移、日期键、分钟数、时段。
 
@@ -129,13 +155,13 @@ Cortico World 扩展：把行情搬进对话，并且按`你所在地方的时�
 
 数字与个股不会因为改写而变 —— 模型只换语气和顺序。想要完全固定的文案就设 `personaMode=plain`。
 
-![人格化改写示意图](screenshots/persona.svg)
+![人格化改写示意图](screenshots/persona.png)
 
 ## 播报长什么样
 
-![A 股播报示意图](screenshots/brief.svg)
+![A 股播报示意图](screenshots/brief.png)
 
-![美股播报示意图](screenshots/us-brief.svg)
+![美股播报示意图](screenshots/us-brief.png)
 
 追问那句是独立一条事件：`请问鸿,需要查看吗?` —— 名字取 `user`，取不到就叫「你」。
 

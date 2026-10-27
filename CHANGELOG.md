@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.3
+
+### 文档
+
+- README 换成统一首屏：npm / 许可证 / node / world api 四个徽章、一句话定位、要点清单、元信息行与目录；二级标题去掉标点，锚点与目录逐条对齐。
+- 标签口径与实际 `cortico.tags` 对齐；补 `keywords` 便于在 npm 与 GitHub 搜索到。
+
 ## 0.2.2
 
 发布元数据与包体积对齐：
